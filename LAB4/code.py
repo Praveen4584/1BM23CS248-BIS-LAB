@@ -1,0 +1,83 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from skimage import data
+import cv2
+
+# Load the standard grayscale 'Cameraman' image from skimage
+image = data.camera()
+
+# Define fitness function - between-class variance for threshold
+def between_class_variance(threshold, img):
+    threshold = int(threshold)
+    hist = np.bincount(img.flatten(), minlength=256)
+    total_pixels = img.size
+    
+    weight_background = np.sum(hist[:threshold]) / total_pixels
+    weight_foreground = np.sum(hist[threshold:]) / total_pixels
+    
+    if weight_background == 0 or weight_foreground == 0:
+        return 0
+    
+    mean_background = np.sum(np.arange(0, threshold) * hist[:threshold]) / np.sum(hist[:threshold])
+    mean_foreground = np.sum(np.arange(threshold, 256) * hist[threshold:]) / np.sum(hist[threshold:])
+    
+    bc_variance = weight_background * weight_foreground * (mean_background - mean_foreground) ** 2
+    return bc_variance
+
+# PSO parameters
+num_particles = 30
+max_iterations = 50
+w = 0.7
+c1 = 1.5
+c2 = 1.5
+
+# Initialize particles (threshold values 0-255)
+positions = np.random.uniform(0, 255, num_particles)
+velocities = np.random.uniform(-10, 10, num_particles)
+
+personal_best_positions = positions.copy()
+personal_best_scores = np.array([between_class_variance(p, image) for p in positions])
+
+best_particle_idx = np.argmax(personal_best_scores)
+global_best_position = personal_best_positions[best_particle_idx]
+global_best_score = personal_best_scores[best_particle_idx]
+
+for iteration in range(max_iterations):
+    for i in range(num_particles):
+        r1 = np.random.rand()
+        r2 = np.random.rand()
+        
+        velocities[i] = (w * velocities[i] +
+                         c1 * r1 * (personal_best_positions[i] - positions[i]) +
+                         c2 * r2 * (global_best_position - positions[i]))
+        
+        positions[i] += velocities[i]
+        positions[i] = np.clip(positions[i], 0, 255)
+        
+        fitness = between_class_variance(positions[i], image)
+        
+        if fitness > personal_best_scores[i]:
+            personal_best_scores[i] = fitness
+            personal_best_positions[i] = positions[i]
+            
+            if fitness > global_best_score:
+                global_best_score = fitness
+                global_best_position = positions[i]
+    
+    print(f"Iteration {iteration+1}/{max_iterations} — Best Threshold: {global_best_position:.2f} — Score: {global_best_score:.4f}")
+
+best_threshold = int(global_best_position)
+_, thresholded_img = cv2.threshold(image, best_threshold, 255, cv2.THRESH_BINARY)
+
+plt.figure(figsize=(12,6))
+plt.subplot(1,2,1)
+plt.title('Original Image (Cameraman)')
+plt.imshow(image, cmap='gray')
+plt.axis('off')
+
+plt.subplot(1,2,2)
+plt.title(f'PSO Thresholded Image\nThreshold = {best_threshold}')
+plt.imshow(thresholded_img, cmap='gray')
+plt.axis('off')
+
+plt.show()
