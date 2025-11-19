@@ -1,0 +1,68 @@
+# pip install numpy pandas scikit-learn   
+import numpy as np   
+import pandas as pd   
+from sklearn.datasets import load_iris   
+from sklearn.model_selection import train_test_split   
+from sklearn.neighbors import KNeighborsClassifier   
+from sklearn.metrics import accuracy_score   
+# -------------------------- 
+# Grey Wolf Optimizer (GWO) 
+# -------------------------- 
+def fitness_function(features, X_train, X_test, y_train, y_test):   
+# Select only chosen features 
+cols = [i for i in range(len(features)) if features[i] > 0.5]      
+if len(cols) == 0:   
+return 0   
+X_train_sel = X_train[:, cols]   
+X_test_sel = X_test[:, cols]   
+# Train simple KNN classifier      
+clf = KNeighborsClassifier(n_neighbors=3)   
+clf.fit(X_train_sel, y_train)      
+y_pred = clf.predict(X_test_sel)   
+return accuracy_score(y_test, y_pred)   
+def GWO(X_train, X_test, y_train, y_test, n_wolves=10, max_iter=20):   
+dim = X_train.shape[1]      
+alpha_pos = np.zeros(dim)      
+beta_pos = np.zeros(dim)      
+delta_pos = np.zeros(dim)   
+alpha_score = beta_score = delta_score = 0   
+wolves = np.random.rand(n_wolves, dim)   
+for t in range(max_iter):          
+for i in range(n_wolves):   
+fitness = fitness_function(wolves[i], X_train, X_test, y_train, y_test)              
+if fitness > alpha_score:   
+alpha_score, alpha_pos = fitness, wolves[i].copy()              
+elif fitness > beta_score:   
+beta_score, beta_pos = fitness, wolves[i].copy()              
+elif fitness > delta_score:   
+delta_score, delta_pos = fitness, wolves[i].copy()   
+a = 2 - t * (2 / max_iter)  # Linearly decreasing   
+for i in range(n_wolves):              
+for j in range(dim):   
+r1, r2 = np.random.rand(), np.random.rand()   
+A1, C1 = 2 * a * r1 - a, 2 * r2   
+D_alpha = abs(C1 * alpha_pos[j] - wolves[i][j])   
+X1 = alpha_pos[j] - A1 * D_alpha   
+r1, r2 = np.random.rand(), np.random.rand()   
+A2, C2 = 2 * a * r1 - a, 2 * r2   
+D_beta = abs(C2 * beta_pos[j] - wolves[i][j])   
+X2 = beta_pos[j] - A2 * D_beta   
+r1, r2 = np.random.rand(), np.random.rand()   
+A3, C3 = 2 * a * r1 - a, 2 * r2   
+D_delta = abs(C3 * delta_pos[j] - wolves[i][j])   
+X3 = delta_pos[j] - A3 * D_delta   
+wolves[i][j] = (X1 + X2 + X3) / 3   
+wolves = np.clip(wolves, 0, 1)          
+print(f"Iteration {t+1}/{max_iter}, Best Accuracy: {alpha_score:.4f}")   
+return alpha_pos, alpha_score   
+# -------------------------- 
+# Run GWO on Iris dataset 
+# -------------------------- 
+iris = load_iris()   
+X = iris.data   
+y = iris.target   
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)   
+best_features, best_acc = GWO(X_train, X_test, y_train, y_test)   
+selected_features = [i for i, val in enumerate(best_features) if val > 0.5]   
+print("\nBest selected features:", selected_features)   
+print("Best Accuracy:", best_acc)  
