@@ -1,0 +1,109 @@
+import numpy as np 
+import random 
+# --- 2. Define the optimization problem: --- 
+def objective_function(x): 
+"""The function f(x) to be minimized (e.g., Sphere Function).""" 
+# x is a 2D array: [x1, x2] 
+return np.sum(x**2) 
+# --- Define the Update Rule --- 
+def update_rule(current_position, neighbors_data): 
+""" 
+Basic update rule: Move towards the position of the best neighbor. 
+neighbors_data is a list of tuples: [(position, fitness), ...] 
+""" 
+if not neighbors_data: 
+# No neighbors (e.g., on the edge and only checking inbounds) - keep position 
+return current_position 
+# Find the neighbor with the minimum (best) fitness 
+best_neighbor = min(neighbors_data, key=lambda item: item[1]) 
+best_neighbor_pos = best_neighbor[0] 
+# Simple update: move a small step towards the best neighbor 
+learning_rate = 0.1 
+new_position = current_position + learning_rate * (best_neighbor_pos - current_position) 
+return new_position 
+# --- 3. Initialize parameters: --- 
+NUM_CELLS_DIM = 20          # Cells along one dimension (e.g., 20x20 grid) 
+NUM_CELLS = NUM_CELLS_DIM * NUM_CELLS_DIM 
+GRID_SIZE = NUM_CELLS_DIM 
+MAX_ITER = 100 
+SEARCH_SPACE_BOUNDS = [-5.0, 5.0]  # Range for x1 and x2 
+SOLUTION_DIMENSION = 2      # The dimension of the solution vector x (e.g., [x1, x2]) 
+# Define NEIGHBORHOOD structure (8-neighbors: Moore neighborhood) 
+# Relative coordinates for 8 neighbors 
+NEIGHBORHOOD = [(-1, -1), (-1, 0), (-1, 1), 
+( 0, -1),    
+      ( 
+0, 1), 
+( 1, -1), ( 1, 0), ( 1, 1)] 
+# --- 4. Initialize population: --- 
+# Initialize positions: x[i] will be a 2D vector [x1, x2] 
+positions = np.zeros((NUM_CELLS, SOLUTION_DIMENSION)) 
+fitness = np.zeros(NUM_CELLS) 
+ 
+for i in range(NUM_CELLS): 
+    # Assign a random position x[i] in the solution space 
+    low, high = SEARCH_SPACE_BOUNDS 
+    positions[i] = np.random.uniform(low, high, SOLUTION_DIMENSION) 
+     
+    # Compute fitness[i] = f(x[i]) 
+    fitness[i] = objective_function(positions[i]) 
+ 
+best_global_fitness = np.min(fitness) 
+best_global_position = positions[np.argmin(fitness)].copy() 
+ 
+print(f"Initial Best Fitness: {best_global_fitness:.4f} at {best_global_position}") 
+print("-" * 30) 
+ 
+# --- 5. Repeat for ITER = 1 to MAX_ITER: --- 
+for iter_count in range(1, MAX_ITER + 1): 
+     
+    new_positions = positions.copy() 
+    new_fitness = fitness.copy() 
+     
+    # Simulate parallel update for each cell i 
+    for i in range(NUM_CELLS): 
+         
+        # Convert 1D index i to 2D grid coordinates (row, col) 
+        r = i // GRID_SIZE 
+        c = i % GRID_SIZE 
+         
+        # Find neighboring cells based on NEIGHBORHOOD 
+        neighbors_data = [] 
+        for dr, dc in NEIGHBORHOOD: 
+            nr, nc = r + dr, c + dc 
+             
+            # Check bounds 
+            if 0 <= nr < GRID_SIZE and 0 <= nc < GRID_SIZE: 
+                neighbor_idx = nr * GRID_SIZE + nc 
+                 
+                neighbor_pos = positions[neighbor_idx] 
+                neighbor_fitness = fitness[neighbor_idx] 
+                 
+                neighbors_data.append((neighbor_pos, neighbor_fitness)) 
+ 
+        # Update state of cell i using update rule: 
+        new_pos = update_rule(positions[i], neighbors_data) 
+         
+        # Ensure the new position stays within the defined search space bounds 
+        low, high = SEARCH_SPACE_BOUNDS 
+        new_positions[i] = np.clip(new_pos, low, high) 
+# Recalculate fitness[i] = f(x[i]) 
+new_fitness[i] = objective_function(new_positions[i]) 
+# Update the entire population for the next iteration 
+positions = new_positions 
+fitness = new_fitness 
+# Find the best cell with highest (or lowest) fitness 
+current_best_fitness = np.min(fitness) 
+# Update global best 
+if current_best_fitness < best_global_fitness: 
+best_global_fitness = current_best_fitness 
+best_global_position = positions[np.argmin(fitness)].copy() 
+# --- 6. Until convergence or ITER = MAX_ITER --- 
+# (Simplified: just print status every 10 iterations) 
+if iter_count % 10 == 0 or iter_count == MAX_ITER: 
+print(f"Iteration {iter_count:3d}: Best Fitness = {best_global_fitness:.4f}") 
+print("-" * 30) 
+# --- 7. Output: --- 
+print("\n✅ Optimization Complete.") 
+print(f"Final Best Solution (x): {best_global_position}") 
+print(f"Final Best Fitness (f(x)): {best_global_fitness:.8f}")
