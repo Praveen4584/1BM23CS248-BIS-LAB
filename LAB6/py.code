@@ -1,0 +1,73 @@
+import numpy as np   
+import math  # Import Python's math module   
+# Example processing times for n jobs   
+processing_times = np.array([2, 5, 1, 3, 4])  # Change this as needed   
+n_jobs = len(processing_times)   
+# Objective function: sum of completion times (total completion time) 
+def total_completion_time(order):   
+completion_time = 0      
+current_time = 0      
+for job in order:   
+current_time += processing_times[job]          
+completion_time += current_time      
+return completion_time   
+# Convert continuous vector to job permutation (random-key encoding) 
+def vector_to_permutation(vec):   
+return np.argsort(vec)   
+# Levy flight step generator 
+def levy_flight(Lambda, dim):   
+sigma = (math.gamma(1 + Lambda) * math.sin(math.pi * Lambda / 2) /   
+(math.gamma((1 + Lambda) / 2) * Lambda * 2 ** ((Lambda - 1) / 2))) ** (1 / Lambda)      
+u = np.random.normal(0, sigma, size=dim)      
+v = np.random.normal(0, 1, size=dim)      
+step = u / np.abs(v) ** (1 / Lambda)   
+return step   
+# Parameters   
+n_nests = 25            # Number of nests (solutions)   
+pa = 0.25               # Probability of abandoning worse nests   
+n_iterations = 1000     # Number of iterations   
+dim = n_jobs
+            # Dimension of the problem (number of jobs)   
+# Initialize nests randomly in [0,1]   
+nests = np.random.rand(n_nests, dim)   
+fitness = np.array([total_completion_time(vector_to_permutation(nests[i]))   
+for i in range(n_nests)])   
+# Find the best initial solution   
+best_idx = np.argmin(fitness)   
+best_nest = nests[best_idx].copy()   
+best_fitness = fitness[best_idx]   
+for t in range(n_iterations):   
+# Generate new solutions via Levy flights   
+for i in range(n_nests):   
+step = levy_flight(1.5, dim)          
+new_solution = nests[i] + 0.01 * step          
+new_solution = np.clip(new_solution, 0, 1)  # Keep within [0,1]   
+new_fitness = total_completion_time(vector_to_permutation(new_solution))   
+# Replace if better          
+if new_fitness < fitness[i]:              
+nests[i] = new_solution              
+fitness[i] = new_fitness   
+if new_fitness < best_fitness:                  
+best_fitness = new_fitness   
+best_nest = new_solution.copy()   
+# Abandon some nests and generate new ones   
+K = np.random.rand(n_nests, dim) > pa   
+# Use a consistent permutation for difference calculation   
+perm = np.random.permutation(n_nests)      
+stepsize = np.random.rand(n_nests, dim) * (nests[perm] - nests[np.roll(perm, 1)])   
+nests = nests + stepsize * K   
+nests = np.clip(nests, 0, 1)   
+# Evaluate new nests      
+for i in range(n_nests):   
+new_fitness = total_completion_time(vector_to_permutation(nests[i]))          
+if new_fitness < fitness[i]:   
+fitness[i] = new_fitness   
+if new_fitness < best_fitness:   
+best_nest = nests[i].copy()   
+best_fitness = new_fitness                  
+# Print progress every 100 iterations      
+if (t + 1) % 100 == 0:   
+print(f"Iteration {t + 1}, Best total completion time: {best_fitness}")   
+print("\nOptimization finished.")   
+print("Best job order:", vector_to_permutation(best_nest))   
+print("Best total completion time:", best_fitness)   
