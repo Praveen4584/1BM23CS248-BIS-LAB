@@ -1,96 +1,96 @@
-import numpy as np  
-import random  
-# --- 1. Problem Definition (ELD) ---  
-# Data for a 3-unit system (from a common test case in research papers)  
-# [a, b, c, P_min, P_max] for each generator 
-generator_data = np.array([     [0.008, 7.0, 
-200.0, 10.0, 85.0],  
-[0.009, 6.3, 180.0, 10.0, 80.0],  
-[0.007, 6.8, 140.0, 10.0, 70.0]  
-])  
-# Total power demand  
-total_demand = 150.0 # in MW  
-# The objective function to minimize (total generation cost) def 
-objective_function(P_values):  
-"""  
-Calculates the total fuel cost for a given power output for each generator.     
-P_values is a NumPy array of power outputs.  
-"""  
-a = generator_data[:, 0]     
-b = generator_data[:, 1]  
-c = generator_data[:, 2]  
-total_cost = np.sum(a * P_values**2 + b * P_values + c)     
-return total_cost  
-# Penalty function for constraints def calculate_fitness(P_values, 
-total_demand, penalty_factor=1000):  
-"""  
-Calculates the fitness of a particle, including penalties for violating constraints.  - P_values: the current power output of generators  - total_demand: the system load  - penalty_factor: a large number to penalize constraint violations  
-"""  
-# Sum of power generated     
-generated_power = np.sum(P_values)  
-# Calculate objective value (total cost)  
-cost = objective_function(P_values)  
-# Add a penalty for not meeting the power balance constraint
- We use the squared difference to make the penalty more significant     
-penalty = penalty_factor * (generated_power - total_demand)**2     
-return cost + penalty  
-     # 
-# --- 2. PSO Algorithm Implementation --- class Particle:     def __init__(self, 
-num_dims, bounds):
-         self.position = np.random.uniform(bounds[:, 0], 
-bounds[:, 1], num_dims)         self.velocity = np.zeros(num_dims)         
-self.personal_best_position = np.copy(self.position)  
-self.personal_best_fitness = float('inf')  
-def update_velocity(self, global_best_position, w=0.5, c1=2.0, c2=2.0):  
-r1 = random.uniform(0, 1)         
-r2 = random.uniform(0, 1)  
-# Cognitive component: towards its own best position  
-cognitive_velocity = c1 * r1 * (self.personal_best_position - self.position)  
-# Social component: towards the swarm's best position         
-social_velocity = c2 * r2 * (global_best_position - self.position)  
-self.velocity = w * self.velocity + cognitive_velocity + social_velocity  
-def update_position(self, bounds):         
-self.position += self.velocity  
-# Clamp positions to stay within bounds  
-self.position = np.clip(self.position, bounds[:, 0], bounds[:, 1])  
-def pso_optimizer(num_particles, max_iterations):  
-num_generators = generator_data.shape[0]     
-bounds = generator_data[:, 3:5]  
-# Initialize the swarm  
-particles = [Particle(num_generators, bounds) for _ in range(num_particles)]  
-global_best_position = None  
-global_best_fitness = float('inf')  
-for i in range(max_iterations):         
-for particle in particles:  
-# Calculate fitness for the current position  
-current_fitness = calculate_fitness(particle.position, total_demand)  
-             if current_fitness < 
-# Update personal best
- particle.personal_best_fitness:                 
-particle.personal_best_fitness = current_fitness  
-particle.personal_best_position = np.copy(particle.position)  
-# Update global best
-             if 
-current_fitness < global_best_fitness:                 
-global_best_fitness = current_fitness  
-global_best_position = np.copy(particle.position)  
-# Update velocities and positions for all particles         
-for particle in particles:  
-particle.update_velocity(global_best_position)             
-particle.update_position(bounds)  
-# Print progress         
-if (i+1) % 50 == 0:  
-print(f"Iteration {i+1}: Best Fitness = {global_best_fitness:.4f}")  
-return global_best_position, global_best_fitness  
-# --- 3. Run the Optimization --- if 
-__name__ == '__main__':  
-num_particles = 30  
-max_iterations = 200  
-optimal_power, min_cost = pso_optimizer(num_particles, max_iterations)  
-print("\n--- Optimization Complete ---")     
-print("Optimal Power Generation (MW):")     for 
-i, p_gen in enumerate(optimal_power):  
-print(f"  Generator {i+1}: {p_gen:.4f} MW")  
-print(f"\nTotal Power Generated: {np.sum(optimal_power):.4f} MW")     
-print(f"Total Load Demand: {total_demand} MW")     print(f"Minimum Total 
-Generation Cost: ${objective_function(optimal_power):.2f}")  
+import numpy as np 
+import matplotlib.pyplot as plt 
+from skimage import data 
+import cv2 
+
+# Load the standard grayscale 'Cameraman' image from skimage 
+image = data.camera() 
+
+# Define fitness function - between-class variance for threshold 
+def between_class_variance(threshold, img): 
+    threshold = int(threshold) 
+    hist = np.bincount(img.flatten(), minlength=256) 
+    total_pixels = img.size 
+
+    weight_background = np.sum(hist[:threshold]) / total_pixels 
+    weight_foreground = np.sum(hist[threshold:]) / total_pixels 
+
+    if weight_background == 0 or weight_foreground == 0: 
+        return 0 
+
+    mean_background = np.sum(np.arange(0, threshold) * hist[:threshold]) / np.sum(hist[:threshold]) 
+    mean_foreground = np.sum(np.arange(threshold, 256) * hist[threshold:]) / np.sum(hist[threshold:]) 
+
+    bc_variance = weight_background * weight_foreground * (mean_background - mean_foreground) ** 2 
+    return bc_variance 
+
+
+# PSO parameters 
+num_particles = 30 
+max_iterations = 50 
+w = 0.7 
+c1 = 1.5 
+c2 = 1.5 
+
+# Initialize particles (threshold values 0–255) 
+positions = np.random.uniform(0, 255, num_particles) 
+velocities = np.random.uniform(-10, 10, num_particles) 
+
+personal_best_positions = positions.copy() 
+personal_best_scores = np.array([between_class_variance(p, image) for p in positions]) 
+
+best_particle_idx = np.argmax(personal_best_scores) 
+global_best_position = personal_best_positions[best_particle_idx] 
+global_best_score = personal_best_scores[best_particle_idx] 
+
+
+for iteration in range(max_iterations): 
+    for i in range(num_particles): 
+        r1 = np.random.rand() 
+        r2 = np.random.rand() 
+
+        velocities[i] = (
+            w * velocities[i] 
+            + c1 * r1 * (personal_best_positions[i] - positions[i]) 
+            + c2 * r2 * (global_best_position - positions[i])
+        )
+
+        positions[i] += velocities[i] 
+        positions[i] = np.clip(positions[i], 0, 255) 
+
+        fitness = between_class_variance(positions[i], image) 
+
+        if fitness > personal_best_scores[i]: 
+            personal_best_scores[i] = fitness 
+            personal_best_positions[i] = positions[i] 
+
+        if fitness > global_best_score: 
+            global_best_score = fitness 
+            global_best_position = positions[i] 
+
+    print(
+        f"Iteration {iteration+1}/{max_iterations} — "
+        f"Best Threshold: {global_best_position:.2f} — Score: {global_best_score:.4f}"
+    ) 
+
+
+best_threshold = int(global_best_position) 
+
+# Threshold the image 
+_, thresholded_img = cv2.threshold(image, best_threshold, 255, cv2.THRESH_BINARY) 
+
+
+# Show results 
+plt.figure(figsize=(12, 6)) 
+
+plt.subplot(1, 2, 1) 
+plt.title('Original Image (Cameraman)') 
+plt.imshow(image, cmap='gray') 
+plt.axis('off') 
+
+plt.subplot(1, 2, 2) 
+plt.title(f'PSO Thresholded Image\nThreshold = {best_threshold}') 
+plt.imshow(thresholded_img, cmap='gray') 
+plt.axis('off') 
+
+plt.show()
