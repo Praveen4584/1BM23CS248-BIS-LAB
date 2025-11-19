@@ -1,0 +1,17 @@
+Initial Best Fitness: 0.0668 at [0.2370959  0.10308569]
+------------------------------
+Iteration  10: Best Fitness = 0.0172
+Iteration  20: Best Fitness = 0.0000
+Iteration  30: Best Fitness = 0.0000
+Iteration  40: Best Fitness = 0.0000
+Iteration  50: Best Fitness = 0.0000
+Iteration  60: Best Fitness = 0.0000
+Iteration  70: Best Fitness = 0.0000
+Iteration  80: Best Fitness = 0.0000
+Iteration  90: Best Fitness = 0.0000
+Iteration 100: Best Fitness = 0.0000
+------------------------------
+
+✅ Optimization Complete.
+Final Best Solution (x): [ 6.30710831e-06 -2.58115481e-06]
+Final Best Fitness (f(x)): 0.00000000
